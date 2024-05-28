@@ -21,9 +21,9 @@ int main() {
     double amount;
     BankAccount account1, account2;
 
-    account1.accountNumber = 1;
+    account1.accountNumber = 1003993248;
     strcpy(account1.name, "Akporeha Odafe");
-    account1.balance = 1000.0;
+    account1.balance = 15000.0;
 
 
 
