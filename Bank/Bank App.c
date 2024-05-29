@@ -2,90 +2,200 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Define the structure for a bank account
+#define FILENAME "accounts.dat"
+#define MAX_NAME_LENGTH 100
+#define PIN_LENGTH 5
+
 typedef struct {
-    int accountNumber;
-    char name[100];
+    int account_number;
+    char name[MAX_NAME_LENGTH];
+    char pin[PIN_LENGTH];
     double balance;
-} BankAccount;
+} Account;
 
 // Function prototypes
-void createAccount(BankAccount *account);
-void depositMoney(BankAccount *account, double amount);
-void withdrawMoney(BankAccount *account, double amount);
-void checkBalance(BankAccount account);
-
+void create_account();
+void display_accounts();
+void deposit_money();
+void withdraw_money();
+void save_account(Account account);
+void load_accounts();
+int verify_pin(Account account);
 
 int main() {
     int choice;
-    double amount;
-    BankAccount account1, account2;
 
-    account1.accountNumber = 1003993248;
-    strcpy(account1.name, "Akporeha Odafe");
-    account1.balance = 15000.0;
-
-
+    // Load existing accounts from file
+    load_accounts();
 
     while (1) {
-        printf("\nWelcome to FCMB select one of the following Dear customer:\n");
-        printf("1. Check Balance\n");
-        printf("2. Deposit Money\n");
-        printf("3. Withdraw Money\n");
-
-        printf("4. Exit\n");
+        printf("\nWelcome to FCMB dear customer\n");
+        printf("1. Create Account\n");
+        printf("2. View Accounts\n");
+        printf("3. Deposit Money\n");
+        printf("4. Withdraw Money\n");
+        printf("5. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
 
         switch (choice) {
             case 1:
-                checkBalance(account1);
+                create_account();
                 break;
             case 2:
-                printf("Enter amount to deposit: ");
-                scanf("%lf", &amount);
-                depositMoney(&account1, amount);
+                display_accounts();
                 break;
             case 3:
-                printf("Enter amount to withdraw: ");
-                scanf("%lf", &amount);
-                withdrawMoney(&account1, amount);
+                deposit_money();
                 break;
-
             case 4:
+                withdraw_money();
+                break;
+            case 5:
                 exit(0);
             default:
                 printf("Invalid choice. Please try again.\n");
         }
     }
+
     return 0;
 }
 
-// Function to deposit money into an account
-void depositMoney(BankAccount *account, double amount) {
-    if (amount > 0) {
-        account->balance += amount;
-        printf("Amount deposited successfully. New balance: %.2f\n", account->balance);
-    } else {
-        printf("Invalid amount.\n");
+void create_account() {
+    Account new_account;
+    FILE *file = fopen(FILENAME, "ab");
+
+    if (!file) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    printf("Enter account number: ");
+    scanf("%d", &new_account.account_number);
+    printf("Enter name: ");
+    scanf(" %[^\n]", new_account.name);  // To read a string with spaces
+    printf("Set a 4-digit PIN: ");
+    scanf("%4s", new_account.pin);
+    printf("Enter initial balance: ");
+    scanf("%lf", &new_account.balance);
+
+    fwrite(&new_account, sizeof(Account), 1, file);
+    fclose(file);
+
+    printf("Account created successfully.\n");
+}
+
+void display_accounts() {
+    Account account;
+    FILE *file = fopen(FILENAME, "rb");
+
+    if (!file) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    printf("\nAccount Details:\n");
+    printf("Account Number\tName\t\tBalance\n");
+    while (fread(&account, sizeof(Account), 1, file)) {
+        printf("%d\t\t%s\t\t%.2f\n", account.account_number, account.name, account.balance);
+    }
+
+    fclose(file);
+}
+
+void deposit_money() {
+    int account_number;
+    double amount;
+    Account account;
+    FILE *file = fopen(FILENAME, "rb+");
+    int found = 0;
+
+    if (!file) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    printf("Enter account number: ");
+    scanf("%d", &account_number);
+    printf("Enter amount to deposit: ");
+    scanf("%lf", &amount);
+
+    while (fread(&account, sizeof(Account), 1, file)) {
+        if (account.account_number == account_number) {
+            if (verify_pin(account)) {
+                account.balance += amount;
+                fseek(file, -sizeof(Account), SEEK_CUR);
+                fwrite(&account, sizeof(Account), 1, file);
+                found = 1;
+                printf("Deposit successful.\n");
+            } else {
+                printf("Incorrect PIN.\n");
+            }
+            break;
+        }
+    }
+
+    if (!found) {
+        printf("Account not found.\n");
+    }
+
+    fclose(file);
+}
+
+void withdraw_money() {
+    int account_number;
+    double amount;
+    Account account;
+    FILE *file = fopen(FILENAME, "rb+");
+    int found = 0;
+
+    if (!file) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    printf("Enter account number: ");
+    scanf("%d", &account_number);
+    printf("Enter amount to withdraw: ");
+    scanf("%lf", &amount);
+
+    while (fread(&account, sizeof(Account), 1, file)) {
+        if (account.account_number == account_number) {
+            if (verify_pin(account)) {
+                if (account.balance >= amount) {
+                    account.balance -= amount;
+                    fseek(file, -sizeof(Account), SEEK_CUR);
+                    fwrite(&account, sizeof(Account), 1, file);
+                    found = 1;
+                    printf("Withdrawal successful.\n");
+                } else {
+                    printf("Insufficient balance.\n");
+                }
+            } else {
+                printf("Incorrect PIN.\n");
+            }
+            break;
+        }
+    }
+
+    if (!found) {
+        printf("Account not found.\n");
+    }
+
+    fclose(file);
+}
+
+int verify_pin(Account account) {
+    char entered_pin[PIN_LENGTH];
+    printf("Enter your 4-digit PIN: ");
+    scanf("%4s", entered_pin);
+    return strcmp(account.pin, entered_pin) == 0;
+}
+
+void load_accounts() {
+    // This function ensures the file exists
+    FILE *file = fopen(FILENAME, "ab");
+    if (file) {
+        fclose(file);
     }
 }
-
-// Function to withdraw money from an account
-void withdrawMoney(BankAccount *account, double amount) {
-    if (amount > 0 && amount <= account->balance) {
-        account->balance -= amount;
-        printf("Amount withdrawn successfully. New balance: %.2f\n", account->balance);
-    } else {
-        printf("Invalid amount or insufficient balance.\n");
-    }
-}
-
-// Function to check the account balance
-void checkBalance(BankAccount account) {
-    printf("Account Number: %d\n", account.accountNumber);
-    printf("Account Holder: %s\n", account.name);
-    printf("Current Balance: %.2f\n", account.balance);
-}
-
-
